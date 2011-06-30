@@ -1,0 +1,70 @@
+name = "Example"
+description = "Drupal 7 example install profile."
+version = "7.x-1.0"
+core = "7.x"
+
+; Core
+dependencies[] = "dblog"
+dependencies[] = "image"
+dependencies[] = "path"
+dependencies[] = "rdf"
+
+; Core - Field
+dependencies[] = "field_ui"
+
+; Core - Field types
+dependencies[] = "file"
+dependencies[] = "list"
+dependencies[] = "number"
+dependencies[] = "options"
+dependencies[] = "text"
+
+; Core - Content
+dependencies[] = "block"
+dependencies[] = "comment"
+dependencies[] = "menu"
+dependencies[] = "taxonomy"
+
+; Core - UI
+dependencies[] = "dashboard"
+dependencies[] = "help"
+
+; Buildkit
+dependencies[] = "admin"
+dependencies[] = "context"
+dependencies[] = "ctools"
+dependencies[] = "devel"
+dependencies[] = "diff"
+dependencies[] = "features"
+dependencies[] = "openidadmin"
+dependencies[] = "strongarm"
+dependencies[] = "views"
+
+; Contrib - Tools
+dependencies[] = "boxes"
+dependencies[] = "entity"
+dependencies[] = "feeds"
+dependencies[] = "job_scheduler"
+dependencies[] = "libraries"
+dependencies[] = "markdown"
+dependencies[] = "token"
+dependencies[] = "transliteration"
+
+; Contrib - Date
+dependencies[] = "date"
+dependencies[] = "date_api"
+dependencies[] = "date_popup"
+dependencies[] = "date_views"
+
+; Contrib - Performance
+dependencies[] = "entitycache"
+
+; Contrib - UIs
+dependencies[] = "context_ui"
+dependencies[] = "feeds_ui"
+dependencies[] = "views_ui"
+
+; Features
+dependencies[] = "features_page"
+dependencies[] = "features_settings"
+dependencies[] = "features_tags"
