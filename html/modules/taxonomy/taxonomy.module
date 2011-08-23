@@ -312,17 +312,6 @@ function taxonomy_menu() {
     'type' => MENU_CALLBACK,
     'file' => 'taxonomy.pages.inc',
   );
-  $items['taxonomy/autocomplete/%/%menu_tail'] = array(
-    'title' => 'Autocomplete taxonomy',
-    'page callback' => 'taxonomy_autocomplete',
-    'page arguments' => array(2, 3),
-    'access arguments' => array('access content'),
-    'type' => MENU_CALLBACK,
-    'file' => 'taxonomy.pages.inc',
-    // Needed for menu_tail_load().
-    'load arguments' => array('%map', '%index'),
-  );
-  // This path is also required for autocomplete to work.
   $items['taxonomy/autocomplete'] = array(
     'title' => 'Autocomplete taxonomy',
     'page callback' => 'taxonomy_autocomplete',
@@ -1701,53 +1690,71 @@ function taxonomy_field_presave($entity_type, $entity, $field, $instance, $langc
 }
 
 /**
- * Implements hook_field_insert().
+ * Implements hook_node_insert().
  */
-function taxonomy_field_insert($entity_type, $entity, $field, $instance, $langcode, &$items) {
+function taxonomy_node_insert($node) {
   // We maintain a denormalized table of term/node relationships, containing
   // only data for current, published nodes.
-  if (variable_get('taxonomy_maintain_index_table', TRUE) && $field['storage']['type'] == 'field_sql_storage' && $entity_type == 'node' && $entity->status) {
-    $query = db_insert('taxonomy_index')->fields(array('nid', 'tid', 'sticky', 'created', ));
-    foreach ($items as $item) {
-      $query->values(array(
-        'nid' => $entity->nid,
-        'tid' => $item['tid'],
-        'sticky' => $entity->sticky,
-        'created' => $entity->created,
-      ));
+  $status = NULL;
+  if (variable_get('taxonomy_maintain_index_table', TRUE)) {
+    // Status and sticky can be in $node->original.
+    if (!empty($node->original)) {
+      $status = (int)(!empty($node->status) || (!isset($node->status) && !empty($node->original->status)));
+      $sticky = (int)(!empty($node->sticky) || (!isset($node->sticky) && !empty($node->original->sticky)));
     }
-    $query->execute();
+    else {
+      $status = (int)(!empty($node->status));
+      $sticky = (int)(!empty($node->sticky));
+    }
   }
-}
-
-/**
- * Implements hook_field_update().
- */
-function taxonomy_field_update($entity_type, $entity, $field, $instance, $langcode, &$items) {
-  if (variable_get('taxonomy_maintain_index_table', TRUE) && $field['storage']['type'] == 'field_sql_storage' && $entity_type == 'node') {
-    $first_call = &drupal_static(__FUNCTION__, array());
-
-    // We don't maintain data for old revisions, so clear all previous values
-    // from the table. Since this hook runs once per field, per object, make
-    // sure we only wipe values once.
-    if (!isset($first_call[$entity->nid])) {
-      $first_call[$entity->nid] = FALSE;
-      db_delete('taxonomy_index')->condition('nid', $entity->nid)->execute();
+  if ($status || variable_get('taxonomy_index_unpublished', FALSE)) {
+    // Collect all the terms.
+    $tid_all = array();
+    foreach (field_info_instances('node', $node->type) as $instance) {
+      $field_name = $instance['field_name'];
+      $field = field_info_field($field_name);
+      if ($field['module'] == 'taxonomy' && $field['storage']['type'] == 'field_sql_storage') {
+        // Field items can be in $node->original.
+        if (isset($node->{$field_name})) {
+          $items = $node->{$field_name};
+        }
+        elseif (isset($node->original->{$field_name})) {
+          $items = $node->original->{$field_name};
+        }
+        else {
+          continue;
+        }
+        foreach (field_available_languages('node', $field) as $langcode) {
+          if (!empty($items[$langcode])) {
+            foreach ($items[$langcode] as $item) {
+              $tid_all[$item['tid']] = $item['tid'];
+            }
+          }
+        }
+      }
     }
-    // Only save data to the table if the node is published.
-    if ($entity->status) {
+    // Insert index for all the terms.
+    if (!empty($tid_all)) {
       $query = db_insert('taxonomy_index')->fields(array('nid', 'tid', 'sticky', 'created'));
-      foreach ($items as $item) {
+      foreach ($tid_all as $tid) {
         $query->values(array(
-          'nid' => $entity->nid,
-          'tid' => $item['tid'],
-          'sticky' => $entity->sticky,
-          'created' => $entity->created,
+          'nid' => $node->nid,
+          'tid' => $tid,
+          'sticky' => $sticky,
+          'created' => $node->created,
         ));
       }
       $query->execute();
     }
   }
+}
+
+/**
+ * Implements hook_node_update().
+ */
+function taxonomy_node_update($node) {
+  taxonomy_node_delete($node);
+  taxonomy_node_insert($node);
 }
 
 /**

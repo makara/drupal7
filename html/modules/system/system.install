@@ -817,6 +817,7 @@ function system_schema() {
         'length' => 255,
         'not null' => TRUE,
         'default' => '',
+        'binary' => TRUE,
       ),
       'filemime' => array(
         'description' => "The file's MIME type.",
@@ -2175,6 +2176,7 @@ function system_update_7034() {
         'length' => 255,
         'not null' => TRUE,
         'default' => '',
+        'binary' => TRUE,
       ),
       'filemime' => array(
         'description' => "The file's MIME type.",
@@ -2263,6 +2265,9 @@ function system_update_7042() {
   // provided any meaningful unique constraint ('pid' is a primary key).
   db_add_index('url_alias', 'source_language_pid', array('source', 'language', 'pid'));
   db_add_index('url_alias', 'alias_language_pid', array('alias', 'language', 'pid'));
+
+  // Now that the URL aliases are correct, we can rebuild the whitelist.
+  drupal_path_alias_whitelist_rebuild();
 }
 
 /**
@@ -2963,6 +2968,23 @@ function system_update_7071() {
     'length' => 255,
     'not null' => TRUE,
   ));
+}
+
+/**
+ * Apply binary collation to the file_managed.uri column.
+ */
+function system_update_7072() {
+  $spec = array(
+    'description' => 'The URI to access the file (either local or remote).',
+    'type' => 'varchar',
+    'length' => 255,
+    'not null' => TRUE,
+    'default' => '',
+    'binary' => TRUE,
+  );
+  db_drop_unique_key('file_managed', 'uri');
+  db_change_field('file_managed', 'uri', 'uri', $spec,
+    array('unique keys' => array('uri' => array('uri'))));
 }
 
 /**
