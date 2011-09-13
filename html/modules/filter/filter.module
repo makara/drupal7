@@ -309,13 +309,13 @@ function filter_format_disable($format) {
 function filter_format_exists($format_id) {
   $formats = db_select('filter_format', 'ff')
     ->fields('ff')
-    ->condition('format', $format_id)
     ->execute()
     ->fetchAllAssoc('format');
 
   // Allow modules to alter the list of formats; e.g., to load formats
   // exported into code.
-  drupal_alter('filter_formats', $formats);
+  $only_enabled_formats = FALSE;
+  drupal_alter('filter_formats', $formats, $only_enabled_formats);
 
   return isset($formats[$format_id]);
 }
@@ -419,7 +419,8 @@ function filter_formats($account = NULL) {
 
       // Allow modules to alter the list of formats; e.g., to load formats
       // exported into code.
-      drupal_alter('filter_formats', $formats['all']);
+      $only_enabled_formats = TRUE;
+      drupal_alter('filter_formats', $formats['all'], $only_enabled_formats);
 
       cache_set("filter_formats:{$language->language}", $formats['all']);
     }

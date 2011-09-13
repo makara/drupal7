@@ -931,7 +931,7 @@ class TaxonomyTermIndexTestCase extends TaxonomyWebTestCase {
       ':nid' => $node->nid,
       ':tid' => $term_1->tid,
     ))->fetchField();
-    $this->assertEqual(1, $index_count, t('Term 1 is indexed.'));
+    $this->assertEqual(1, $index_count, t('Term 1 is indexed once.'));
 
     // Update the article to change one term.
     $edit["{$this->field_name_1}[$langcode][]"] = $term_2->tid;
@@ -963,7 +963,7 @@ class TaxonomyTermIndexTestCase extends TaxonomyWebTestCase {
       ':nid' => $node->nid,
       ':tid' => $term_2->tid,
     ))->fetchField();
-    $this->assertEqual(1, $index_count, t('Term 2 is indexed.'));
+    $this->assertEqual(1, $index_count, t('Term 2 is indexed once.'));
 
     // Redo the above tests without interface.
     $update_node = array(
@@ -988,7 +988,7 @@ class TaxonomyTermIndexTestCase extends TaxonomyWebTestCase {
       ':nid' => $node->nid,
       ':tid' => $term_2->tid,
     ))->fetchField();
-    $this->assertEqual(1, $index_count, t('Term 2 is indexed.'));
+    $this->assertEqual(1, $index_count, t('Term 2 is indexed once.'));
 
     // Update the article to change one term.
     $update_node[$this->field_name_1][$langcode] = array(array('tid' => $term_1->tid));
@@ -1017,12 +1017,127 @@ class TaxonomyTermIndexTestCase extends TaxonomyWebTestCase {
       ':nid' => $node->nid,
       ':tid' => $term_1->tid,
     ))->fetchField();
-    $this->assertEqual(1, $index_count, t('Term 1 is not indexed.'));
+    $this->assertEqual(1, $index_count, t('Term 1 is indexed once.'));
     $index_count = db_query('SELECT COUNT(*) FROM {taxonomy_index} WHERE nid = :nid AND tid = :tid', array(
       ':nid' => $node->nid,
       ':tid' => $term_2->tid,
     ))->fetchField();
-    $this->assertEqual(0, $index_count, t('Term 2 is indexed.'));
+    $this->assertEqual(0, $index_count, t('Term 2 is not indexed.'));
+  }
+}
+
+/**
+ * Tests for multiple free-tagging fields referencing to a same vocabulary.
+ */
+class TaxonomyTermTaggingTestCase extends TaxonomyWebTestCase {
+
+  public static function getInfo() {
+    return array(
+      'name' => 'Taxonomy term tagging',
+      'description' => 'Tests for multiple free-tagging fields referencing to a same vocabulary.',
+      'group' => 'Taxonomy',
+    );
+  }
+
+  function setUp() {
+    parent::setUp('taxonomy');
+    $this->admin_user = $this->drupalCreateUser(array('administer taxonomy', 'bypass node access'));
+    $this->drupalLogin($this->admin_user);
+    $this->vocabulary = $this->createVocabulary();
+
+    $this->field_name_1 = drupal_strtolower($this->randomName());
+    $this->field_1 = array(
+      'field_name' => $this->field_name_1,
+      'type' => 'taxonomy_term_reference',
+      'cardinality' => FIELD_CARDINALITY_UNLIMITED,
+      'settings' => array(
+        'allowed_values' => array(
+          array(
+            'vocabulary' => $this->vocabulary->machine_name,
+            'parent' => 0,
+          ),
+        ),
+      ),
+    );
+    field_create_field($this->field_1);
+    $this->instance_1 = array(
+      'field_name' => $this->field_name_1,
+      'bundle' => 'article',
+      'entity_type' => 'node',
+      'widget' => array(
+        'type' => 'taxonomy_autocomplete',
+      ),
+      'display' => array(
+        'default' => array(
+          'type' => 'taxonomy_term_reference_link',
+        ),
+      ),
+    );
+    field_create_instance($this->instance_1);
+
+    $this->field_name_2 = drupal_strtolower($this->randomName());
+    $this->field_2 = array(
+      'field_name' => $this->field_name_2,
+      'type' => 'taxonomy_term_reference',
+      'cardinality' => FIELD_CARDINALITY_UNLIMITED,
+      'settings' => array(
+        'allowed_values' => array(
+          array(
+            'vocabulary' => $this->vocabulary->machine_name,
+            'parent' => 0,
+          ),
+        ),
+      ),
+    );
+    field_create_field($this->field_2);
+    $this->instance_2 = array(
+      'field_name' => $this->field_name_2,
+      'bundle' => 'article',
+      'entity_type' => 'node',
+      'widget' => array(
+        'type' => 'taxonomy_autocomplete',
+      ),
+      'display' => array(
+        'default' => array(
+          'type' => 'taxonomy_term_reference_link',
+        ),
+      ),
+    );
+    field_create_instance($this->instance_2);
+  }
+
+  /**
+   * Test tagging.
+   */
+  function testTaxonomyTagging() {
+    $term_name = $this->randomName();
+
+    // Post an article.
+    $edit = array();
+    $langcode = LANGUAGE_NONE;
+    $edit["title"] = $this->randomName();
+    $edit["body[$langcode][0][value]"] = $this->randomName();
+    $edit["{$this->field_name_1}[$langcode]"] = $term_name;
+    $this->drupalPost('node/add/article', $edit, t('Save'));
+
+    // Check that the term is saved and can be retrieved.
+    $terms = taxonomy_get_term_by_name($term_name);
+    $this->assertEqual(1, count($terms), t('The term was saved.'));
+
+    // Update the article with a different tag.
+    $node = $this->drupalGetNodeByTitle($edit["title"]);
+    $term_name = $this->randomName();
+    $edit["{$this->field_name_1}[$langcode]"] = $term_name;
+    $edit["{$this->field_name_2}[$langcode]"] = $term_name;
+    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+
+    // Check that the term is displayed multiple times.
+    $this->assertText($term_name, t('The term was saved and appears on the node page.'));
+    $this->assertNoUniqueText($term_name, t('The term displays multiple times.'));
+
+    // Check that the term is saved only once.
+    $terms = taxonomy_get_term_by_name($term_name);
+    $this->assertEqual(1, count($terms), t('The term was saved only once.'));
   }
 }
 

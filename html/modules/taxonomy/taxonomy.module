@@ -1705,6 +1705,15 @@ function taxonomy_rdf_mapping() {
 function taxonomy_field_presave($entity_type, $entity, $field, $instance, $langcode, &$items) {
   foreach ($items as $delta => $item) {
     if ($item['tid'] == 'autocreate') {
+      // Avoid duplicating tags in a same vocabulary.
+      $existing = taxonomy_term_load_multiple(array(), array('name' => trim($item['name']), 'vid' => $item['vid']));
+      if (!empty($existing)) {
+        $term = reset($existing);
+        if (!empty($term->tid)) {
+          $items[$delta]['tid'] = $term->tid;
+          continue;
+        }
+      }
       $term = (object) $item;
       unset($term->tid);
       taxonomy_term_save($term);
