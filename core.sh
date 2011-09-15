@@ -26,7 +26,7 @@ case "$SELECTION" in
 			exit;
 		fi;
 		echo -e "Replacing html...\c";
-		DIRS="includes misc modules profiles/default scripts themes";
+		DIRS="includes misc modules profiles/minimal profiles/standard profiles/testing scripts themes";
 		for DIR in $DIRS; do
 			if [ -d "html/$DIR" ]; then
 				rm -rf "html/$DIR";
