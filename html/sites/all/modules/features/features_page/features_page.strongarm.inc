@@ -5,7 +5,7 @@
  */
 
 /**
- * Implementation of hook_strongarm().
+ * Implements hook_strongarm().
  */
 function features_page_strongarm() {
   $export = array();
@@ -65,6 +65,13 @@ function features_page_strongarm() {
   $strongarm->name = 'enable_revisions_page_page';
   $strongarm->value = 0;
   $export['enable_revisions_page_page'] = $strongarm;
+
+  $strongarm = new stdClass;
+  $strongarm->disabled = FALSE; /* Edit this to true to make a default strongarm disabled initially */
+  $strongarm->api_version = 1;
+  $strongarm->name = 'language_content_type_page';
+  $strongarm->value = '0';
+  $export['language_content_type_page'] = $strongarm;
 
   $strongarm = new stdClass;
   $strongarm->disabled = FALSE; /* Edit this to true to make a default strongarm disabled initially */

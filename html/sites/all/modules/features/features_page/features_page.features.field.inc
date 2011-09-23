@@ -5,7 +5,7 @@
  */
 
 /**
- * Implementation of hook_field_default_fields().
+ * Implements hook_field_default_fields().
  */
 function features_page_field_default_fields() {
   $fields = array();
@@ -49,7 +49,7 @@ function features_page_field_default_fields() {
           'module' => 'text',
           'settings' => array(),
           'type' => 'text_default',
-          'weight' => 0,
+          'weight' => '0',
         ),
         'teaser' => array(
           'label' => 'hidden',
@@ -77,7 +77,7 @@ function features_page_field_default_fields() {
           'summary_rows' => 5,
         ),
         'type' => 'text_textarea_with_summary',
-        'weight' => -4,
+        'weight' => '1',
       ),
       'widget_type' => 'text_textarea_with_summary',
     ),
