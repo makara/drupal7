@@ -1,3 +1,83 @@
 <?php
 
 include_once('features_settings.features.inc');
+
+/**
+ * Implements hook_date_format_types().
+ */
+function features_settings_date_format_types() {
+  return array(
+    'date_only' => t('Date only'),
+    'time_only' => t('Time only'),
+  );
+}
+
+/**
+ * Implements hook_date_formats().
+ *
+ * @see function system_default_date_formats().
+ */
+function features_settings_date_formats() {
+  $formats = array();
+
+  // Date only formats.
+  $formats[] = array(
+    'type' => 'date_only',
+    'format' => 'Y-m-d',
+    'locales' => array(),
+  );
+  $formats[] = array(
+    'type' => 'date_only',
+    'format' => 'm/d/Y',
+    'locales' => array(),
+  );
+  $formats[] = array(
+    'type' => 'date_only',
+    'format' => 'd/m/Y',
+    'locales' => array(),
+  );
+  $formats[] = array(
+    'type' => 'date_only',
+    'format' => 'Y/m/d',
+    'locales' => array(),
+  );
+  $formats[] = array(
+    'type' => 'date_only',
+    'format' => 'd.m.Y',
+    'locales' => array(),
+  );
+  $formats[] = array(
+    'type' => 'date_only',
+    'format' => 'M j Y',
+    'locales' => array(),
+  );
+  $formats[] = array(
+    'type' => 'date_only',
+    'format' => 'j M Y',
+    'locales' => array(),
+  );
+  $formats[] = array(
+    'type' => 'date_only',
+    'format' => 'Y M j',
+    'locales' => array(),
+  );
+
+  // Time only formats.
+  $formats[] = array(
+    'type' => 'time_only',
+    'format' => 'H:i',
+    'locales' => array(),
+  );
+  $formats[] = array(
+    'type' => 'time_only',
+    'format' => 'g:ia',
+    'locales' => array(),
+  );
+  $formats[] = array(
+    'type' => 'time_only',
+    'format' => 'G:i',
+    'locales' => array(),
+  );
+
+  return $formats;
+}
