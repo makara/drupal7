@@ -312,7 +312,21 @@ function taxonomy_menu() {
     'type' => MENU_CALLBACK,
     'file' => 'taxonomy.pages.inc',
   );
-  $items['taxonomy/autocomplete'] = array(
+  // We append /%menu_tail so the search text may contain slashes.
+  $items['taxonomy/autocomplete/%/%menu_tail'] = array(
+    'title' => 'Autocomplete taxonomy',
+    'page callback' => 'taxonomy_autocomplete',
+    'page arguments' => array(2, 3),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+    'file' => 'taxonomy.pages.inc',
+    // Needed for menu_tail_load().
+    'load arguments' => array('%map', '%index'),
+  );
+  // This matches the vocabulary name without any search text. Even though this
+  // path is never called, its existence is checked by theme_textfield() and
+  // tested in ProfileTestAutocomplete.
+  $items['taxonomy/autocomplete/%'] = array(
     'title' => 'Autocomplete taxonomy',
     'page callback' => 'taxonomy_autocomplete',
     'access arguments' => array('access content'),
@@ -870,7 +884,8 @@ function taxonomy_vocabulary_get_names() {
  *   A taxonomy term ID.
  *
  * @return
- *   An array of term objects which are the parents of the term $tid.
+ *   An array of term objects which are the parents of the term $tid, or an
+ *   empty array if parents are not found.
  */
 function taxonomy_get_parents($tid) {
   $parents = &drupal_static(__FUNCTION__, array());
@@ -1721,7 +1736,7 @@ function taxonomy_rdf_mapping() {
 function taxonomy_field_presave($entity_type, $entity, $field, $instance, $langcode, &$items) {
   foreach ($items as $delta => $item) {
     if ($item['tid'] == 'autocreate') {
-      // Avoid duplicating tags in a same vocabulary.
+      // Avoid duplicating tags within the same vocabulary.
       $tid = db_query_range("SELECT tid FROM {taxonomy_term_data} WHERE name = :name AND vid = :vid", 0, 1, array(
         ':name' => trim($item['name']),
         ':vid' => $item['vid'],
@@ -1742,11 +1757,26 @@ function taxonomy_field_presave($entity_type, $entity, $field, $instance, $langc
  * Implements hook_node_insert().
  */
 function taxonomy_node_insert($node) {
+  // Add taxonomy index entries for the node.
+  taxonomy_build_node_index($node);
+}
+
+/**
+ * Builds and inserts taxonomy index entries for a given node.
+ *
+ * The index lists all terms that are related to a given node entity, and is
+ * therefore maintained at the entity level.
+ *
+ * @param $node
+ *   The node object.
+ */
+function taxonomy_build_node_index($node) {
   // We maintain a denormalized table of term/node relationships, containing
   // only data for current, published nodes.
   $status = NULL;
   if (variable_get('taxonomy_maintain_index_table', TRUE)) {
-    // Status and sticky can be in $node->original.
+    // If a node property is not set in the node object when node_save() is
+    // called, the old value from $node->original is used.
     if (!empty($node->original)) {
       $status = (int)(!empty($node->status) || (!isset($node->status) && !empty($node->original->status)));
       $sticky = (int)(!empty($node->sticky) || (!isset($node->sticky) && !empty($node->original->sticky)));
@@ -1756,14 +1786,16 @@ function taxonomy_node_insert($node) {
       $sticky = (int)(!empty($node->sticky));
     }
   }
+  // We only maintain the taxonomy index for published nodes.
   if ($status || variable_get('taxonomy_index_unpublished', FALSE)) {
-    // Collect all the terms.
+    // Collect a unique list of all the term IDs from all node fields.
     $tid_all = array();
     foreach (field_info_instances('node', $node->type) as $instance) {
       $field_name = $instance['field_name'];
       $field = field_info_field($field_name);
       if ($field['module'] == 'taxonomy' && $field['storage']['type'] == 'field_sql_storage') {
-        // Field items can be in $node->original.
+        // If a field value is not set in the node object when node_save() is
+        // called, the old value from $node->original is used.
         if (isset($node->{$field_name})) {
           $items = $node->{$field_name};
         }
@@ -1782,7 +1814,7 @@ function taxonomy_node_insert($node) {
         }
       }
     }
-    // Insert index for all the terms.
+    // Insert index entries for all the node's terms.
     if (!empty($tid_all)) {
       $query = db_insert('taxonomy_index')->fields(array('nid', 'tid', 'sticky', 'created'));
       foreach ($tid_all as $tid) {
@@ -1802,16 +1834,27 @@ function taxonomy_node_insert($node) {
  * Implements hook_node_update().
  */
 function taxonomy_node_update($node) {
-  taxonomy_node_delete($node);
-  taxonomy_node_insert($node);
+  // Always rebuild the node's taxonomy index entries on node save.
+  taxonomy_delete_node_index($node);
+  taxonomy_build_node_index($node);
 }
 
 /**
  * Implements hook_node_delete().
  */
 function taxonomy_node_delete($node) {
+  // Clean up the {taxonomy_index} table when nodes are deleted.
+  taxonomy_delete_node_index($node);
+}
+
+/**
+ * Deletes taxonomy index entries for a given node.
+ *
+ * @param $node
+ *   The node object.
+ */
+function taxonomy_delete_node_index($node) {
   if (variable_get('taxonomy_maintain_index_table', TRUE)) {
-    // Clean up the {taxonomy_index} table when nodes are deleted.
     db_delete('taxonomy_index')->condition('nid', $node->nid)->execute();
   }
 }
