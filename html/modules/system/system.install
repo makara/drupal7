@@ -2983,7 +2983,7 @@ function system_update_7072() {
 /**
  * Apply binary collation to the file_managed.uri column.
  */
-function system_update_7072() {
+function system_update_7073() {
   $spec = array(
     'description' => 'The URI to access the file (either local or remote).',
     'type' => 'varchar',
