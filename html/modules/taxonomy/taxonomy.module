@@ -295,7 +295,9 @@ function taxonomy_menu() {
   $items['taxonomy/term/%taxonomy_term/edit'] = array(
     'title' => 'Edit',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('taxonomy_form_term', 2),
+    // Pass a NULL argument to ensure that additional path components are not
+    // passed to taxonomy_form_term() as the vocabulary machine name argument.
+    'page arguments' => array('taxonomy_form_term', 2, NULL),
     'access callback' => 'taxonomy_term_edit_access',
     'access arguments' => array(2),
     'type' => MENU_LOCAL_TASK,
@@ -447,6 +449,7 @@ function taxonomy_vocabulary_save($vocabulary) {
 
   if (!empty($vocabulary->vid) && !empty($vocabulary->name)) {
     $status = drupal_write_record('taxonomy_vocabulary', $vocabulary, 'vid');
+    taxonomy_vocabulary_static_reset(array($vocabulary->vid));
     if ($vocabulary->old_machine_name != $vocabulary->machine_name) {
       field_attach_rename_bundle('taxonomy_term', $vocabulary->old_machine_name, $vocabulary->machine_name);
     }
@@ -455,6 +458,7 @@ function taxonomy_vocabulary_save($vocabulary) {
   }
   elseif (empty($vocabulary->vid)) {
     $status = drupal_write_record('taxonomy_vocabulary', $vocabulary);
+    taxonomy_vocabulary_static_reset();
     field_attach_create_bundle('taxonomy_term', $vocabulary->machine_name);
     module_invoke_all('taxonomy_vocabulary_insert', $vocabulary);
     module_invoke_all('entity_insert', $vocabulary, 'taxonomy_vocabulary');
@@ -462,7 +466,6 @@ function taxonomy_vocabulary_save($vocabulary) {
 
   unset($vocabulary->original);
   cache_clear_all();
-  taxonomy_vocabulary_static_reset(array($vocabulary->vid));
 
   return $status;
 }
@@ -1044,9 +1047,9 @@ function taxonomy_get_tree($vid, $parent = 0, $max_depth = NULL, $load_entities 
           break;
         }
         $term = $load_entities ? $term_entities[$child] : $terms[$vid][$child];
-        if (count($parents[$vid][$term->tid]) > 1) {
-          // We have a term with multi parents here. Clone the term,
-          // so that the depth attribute remains correct.
+        if (isset($parents[$vid][$term->tid])) {
+          // Clone the term so that the depth attribute remains correct
+          // in the event of multiple parents.
           $term = clone $term;
         }
         $term->depth = $depth;
@@ -1215,6 +1218,8 @@ function taxonomy_vocabulary_load_multiple($vids = array(), $conditions = array(
  * @return
  *   The vocabulary object with all of its metadata, if exists, FALSE otherwise.
  *   Results are statically cached.
+ *
+ * @see taxonomy_vocabulary_machine_name_load()
  */
 function taxonomy_vocabulary_load($vid) {
   $vocabularies = taxonomy_vocabulary_load_multiple(array($vid));
@@ -1230,6 +1235,8 @@ function taxonomy_vocabulary_load($vid) {
  * @return
  *   The vocabulary object with all of its metadata, if exists, FALSE otherwise.
  *   Results are statically cached.
+ *
+ * @see taxonomy_vocabulary_load()
  */
 function taxonomy_vocabulary_machine_name_load($name) {
   $vocabularies = taxonomy_vocabulary_load_multiple(NULL, array('machine_name' => $name));
